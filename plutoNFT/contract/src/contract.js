@@ -61,6 +61,7 @@ const start = zcf => {
             return {
               ...customValueProperties,
               number: tokenNumber,
+              uri:customValueProperties.uri+tokenNumber
             };
           }),
       ),

@@ -20,6 +20,156 @@ const dirname = path.dirname(filename);
 const mintAndSellNFTRoot = `${dirname}/../src/contract.js`;
 const sellItemsRoot = `${dirname}/../src/sellItems.js`;
 
+test(`mint images`, async t=> {
+  const { admin: fakeVatAdmin, vatAdminState } = makeFakeVatAdmin();
+  const { zoeService: zoe } = makeZoeKit(fakeVatAdmin);
+
+  const mintAndSellNFTBundle = await bundleSource(mintAndSellNFTRoot);
+  vatAdminState.installBundle('pluto-nft', mintAndSellNFTBundle);
+  const mintAndSellNFTInstallation = await E(zoe).installBundleID('pluto-nft');
+
+  const sellItemsBundle = await bundleSource(sellItemsRoot);
+  vatAdminState.installBundle('pluto-sell-items', sellItemsBundle);
+  const sellItemsInstallation = await E(zoe).installBundleID('pluto-sell-items');
+
+  const { issuer: bldIssuer, brand: bldBrand, mint: bldMint } = makeIssuerKit('BLD');
+
+  const { creatorFacet: plutoMaker } = await E(zoe).startInstance(
+    mintAndSellNFTInstallation,
+  );
+
+  const imageURI = 'pluto.agoric.nft/'
+
+  const { sellItemsCreatorSeat, sellItemsInstance,sellItemsCreatorFacet,
+    sellItemsPublicFacet, } = await E(
+    plutoMaker,
+  ).sellTokens({
+    customValueProperties: {
+      uri: imageURI
+    },
+    count: 3,
+    moneyIssuer: bldIssuer,
+    sellItemsInstallation,
+    pricePerItem: AmountMath.make(bldBrand, 1n),
+  });
+
+  t.is(
+    await sellItemsCreatorSeat.getOfferResult(),
+    defaultAcceptanceMsg,
+    `escrowPlutoImagesOutcome is default acceptance message`,
+  );
+
+  const imagesForSale = await E(sellItemsPublicFacet).getAvailableItems();
+
+  t.is(imagesForSale.value.length, 3, `3 images for sale`);
+
+  const bldIssuer2 = E(plutoMaker).getIssuer();
+  const bldBrand2 = await E(bldIssuer2).getBrand();
+  const plutoSalesPublicFacet = await E(zoe).getPublicFacet(sellItemsInstance);
+  const plutosForSale = await E(plutoSalesPublicFacet).getAvailableItems();
+  t.deepEqual(
+    plutosForSale,
+    {
+      brand: bldBrand2,
+      value: [
+        {
+          uri: imageURI + '3',
+          number: 3,
+        },
+        {
+          uri: imageURI + '2',
+          number: 2,
+        },
+        {
+          uri: imageURI + '1',
+          number: 1,
+        },
+      ],
+    },
+    `pluto images are up for sale`,
+  );
+
+  const buyersInvitation = E(sellItemsCreatorFacet).makeBuyerInvitation();
+  const invitationIssuer = E(zoe).getInvitationIssuer();
+  const {
+    value: [{ instance }],
+  } = await E(invitationIssuer).getAmountOf(buyersInvitation);
+  const plutoPublicFacet = await E(zoe).getPublicFacet(instance);
+
+  const plutoIssuer = await E(plutoPublicFacet).getItemsIssuer();
+    const plutoBrand = await E(plutoIssuer).getBrand();
+    const terms = await E(zoe).getTerms(instance);
+    const buyersPurse = await E(bldIssuer).makeEmptyPurse();
+    await E(buyersPurse).deposit( await E(bldMint).mintPayment(AmountMath.make(bldBrand, 10n)));
+
+    const availableImages = await E(
+      plutoPublicFacet,
+    ).getAvailableItems();
+
+    t.is(
+      availableImages.value.length,
+      3,
+      'Buyer should see 3 available tickets',
+    );
+    assert(isSetValue(availableImages.value));
+    t.truthy(
+      availableImages.value.find(ticket => ticket.number === 1),
+      `availableImages contains ticket number 1`,
+    );
+    t.truthy(
+      availableImages.value.find(ticket => ticket.number === 2),
+      `availableImages contains ticket number 2`,
+    );
+    t.truthy(
+      availableImages.value.find(ticket => ticket.number === 3),
+      `availableImages contains ticket number 3`,
+    );
+
+    const image1Value = availableImages.value.find(
+      image => image.number === 1,
+    );
+    // make the corresponding amount
+    const image1Amount = AmountMath.make(plutoBrand, harden([image1Value]));
+
+    const buyersProposal = harden({
+      give: { Money: terms.pricePerItem },
+      want: { Items: image1Amount },
+    });
+
+    const buyersPaymentForTicket = buyersPurse.withdraw(terms.pricePerItem);
+
+    const buyersPaymentKeywordRecord = harden({ Money: buyersPaymentForTicket });
+
+    const seat = await E(zoe).offer(
+      buyersInvitation,
+      buyersProposal,
+      buyersPaymentKeywordRecord,
+    );
+
+    const offerResult = await E(seat).getOfferResult();
+    t.is(
+      offerResult,
+      'The offer has been accepted. Once the contract has been completed, please check your payout',
+    );
+
+    const buyersImages = seat.getPayout('Items');
+    const buyerBoughtTicketAmount = await E(plutoIssuer).getAmountOf(
+      buyersImages,
+    );
+
+    t.is(
+      buyerBoughtTicketAmount.value[0].uri,
+      imageURI + '1',
+      'Buyer should have received the correct image',
+    );
+    t.is(
+      buyerBoughtTicketAmount.value[0].number,
+      1,
+      'Buyer should have received the image for the correct number',
+    );
+
+})
+
 test(`mint and sell tickets for multiple shows`, async t => {
   // Setup initial conditions
   const { admin: fakeVatAdmin, vatAdminState } = makeFakeVatAdmin();
@@ -69,16 +219,19 @@ test(`mint and sell tickets for multiple shows`, async t => {
           show: 'Steven Universe, the Opera',
           start: 'Wed, March 25th 2020 at 8pm',
           number: 3,
+          uri: NaN
         },
         {
           show: 'Steven Universe, the Opera',
           start: 'Wed, March 25th 2020 at 8pm',
           number: 2,
+          uri: NaN
         },
         {
           show: 'Steven Universe, the Opera',
           start: 'Wed, March 25th 2020 at 8pm',
           number: 1,
+          uri: NaN
         },
       ],
     },
@@ -108,11 +261,13 @@ test(`mint and sell tickets for multiple shows`, async t => {
           show: 'Reserved for private party',
           start: 'Tues May 12, 2020 at 8pm',
           number: 2,
+          uri: NaN
         },
         {
           show: 'Reserved for private party',
           start: 'Tues May 12, 2020 at 8pm',
           number: 1,
+          uri: NaN
         },
       ],
     },
@@ -308,6 +463,7 @@ test(`mint and sell opera tickets`, async t => {
           show: 'Steven Universe, the Opera',
           start: 'Wed, March 25th 2020 at 8pm',
           number: 1,
+          uri: NaN
         },
       ]),
     );
@@ -377,6 +533,7 @@ test(`mint and sell opera tickets`, async t => {
           show: 'Steven Universe, the Opera',
           start: 'Wed, March 25th 2020 at 8pm',
           number: 2,
+          uri: NaN
         },
       ]),
     );
