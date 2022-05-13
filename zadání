@@ -1,0 +1,18 @@
+kamil
+stránka s jedním tlačítkem - Generate NFT
+akce - zavolá peněženku s transakcí : pošli 1 blud na adresu contraktu, zavolá funkci Generate a parametrem je náhodné číslo o délce 8 číslic 
+(každá číslice určuje vybranou instanci komponentu)
+uživatel potvrdí v peněžence transakci
+zobrazí se mu potvrzení o úspěchu
+
+
+honza
+generování obrázku z komponent (na vstupu je náhodné číslo, kde každá číslice určuje vybranou instanci komponenty)
+složí obrázek z instancí komponent a předá ho Jirkovi
+
+jirka
+z předaného obrázku vymintuje NFT podle agoric standardu
+
+otevřené body:
+zda honza přímo v kontraktu bude vytvářet obrázek z instancí komponent (zda je to vůbec možné) nebo zda bude nutné zavolat externí libku, 
+která vytvoří ten obrázek a uloží jej někam na filesystem
