@@ -1,62 +1,122 @@
 // @ts-check
-import '@agoric/zoe/exported.js';
-import { AmountMath } from '@agoric/ertp';
+
+import { makeIssuerKit, AssetKind, AmountMath } from '@agoric/ertp';
+import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 
+//import '../../exported.js';
+import { assert } from '@agoric/assert';
+
 /**
- * This is a very simple contract that creates a new issuer and mints payments
- * from it, in order to give an example of how that can be done.  This contract
- * sends new tokens to anyone who has an invitation.
+ * This contract mints non-fungible tokens and creates a selling contract
+ * instance to sell the tokens in exchange for some sort of money.
  *
- * The expectation is that most contracts that want to do something similar
- * would use the ability to mint new payments internally rather than sharing
- * that ability widely as this one does.
+ * startInstance() returns a creatorFacet which is a
+ * ticketMaker with a `.sellTokens()` method. `.sellTokens()` takes a
+ * specification of what is being sold, such as:
+ * {
+ *   customValueProperties: { ...arbitrary },
+ *   count: 3n,
+ *   moneyIssuer: moolaIssuer,
+ *   sellItemsInstallationHandle,
+ *   pricePerItem: AmountMath.make(moolaBrand, 20n),
+ * }
+ * The payouts are returned as an offerResult in the `outcome`, and an API that
+ * allows selling the tickets that were produced. You can reuse the ticket maker
+ * to mint more tickets (e.g. for a separate show.)
  *
- * To pay others in tokens, the creator of the instance can make
- * invitations for them, which when used to make an offer, will payout
- * the specified amount of tokens.
- *
- * @type {ContractStartFn}
+ * @param {ZCF<{
+ * tokenName: string,
+ * }>} zcf
  */
-const start = async (zcf) => {
-  // Create the internal token mint for a fungible digital asset. Note
-  // that 'Tokens' is both the keyword and the allegedName.
-  const zcfMint = await zcf.makeZCFMint('Tokens');
-  // AWAIT
+const start = zcf => {
+  const { tokenName = 'token' } = zcf.getTerms();
+  // Create the internal token mint
+  const { issuer, mint, brand } = makeIssuerKit(tokenName, AssetKind.SET);
 
-  // Now that ZCF has saved the issuer, brand, and local amountMath, they
-  // can be accessed synchronously.
-  const { issuer, brand } = zcfMint.getIssuerRecord();
+  const zoeService = zcf.getZoeService();
 
-  /** @type {OfferHandler} */
-  const mintPayment = (seat) => {
-    const amount = AmountMath.make(brand, 1000n);
-    // Synchronously mint and allocate amount to seat.
-    zcfMint.mintGains(harden({ Token: amount }), seat);
-    // Exit the seat so that the user gets a payout.
-    seat.exit();
-    // Since the user is getting the payout through Zoe, we can
-    // return anything here. Let's return some helpful instructions.
-    return 'Offer completed. You should receive a payment from Zoe';
+  /**
+   * @param {object} obj
+   * @param {Installation<import('./sellItems.js').start>} obj.sellItemsInstallation
+   * @param {*} obj.customValueProperties
+   * @param {number} obj.count
+   * @param {*} obj.moneyIssuer
+   * @param {*} obj.pricePerItem
+   */
+  const sellTokens = ({
+    customValueProperties,
+    count,
+    moneyIssuer,
+    sellItemsInstallation,
+    pricePerItem,
+  }) => {
+    const tokenAmount = AmountMath.make(
+      brand,
+      harden(
+        Array(count)
+          .fill(undefined)
+          .map((_, i) => {
+            const tokenNumber = i + 1;
+            return {
+              ...customValueProperties,
+              number: tokenNumber,
+            };
+          }),
+      ),
+    );
+    const tokenPayment = mint.mintPayment(harden(tokenAmount));
+    // Note that the proposal `want` is empty
+    // This is due to a current limitation in proposal
+    // expressiveness:
+    // https://github.com/Agoric/agoric-sdk/issues/855
+    // It's impossible to know in advance how many tokens will be
+    // sold, so it's not possible to say `want: moola(3*22)`
+    // In a future version of Zoe, it will be possible to express:
+    // "I want n times moolas where n is the number of sold tokens"
+    const proposal = harden({
+      give: { Items: tokenAmount },
+    });
+    const paymentKeywordRecord = harden({ Items: tokenPayment });
+
+    const issuerKeywordRecord = harden({
+      Items: issuer,
+      Money: moneyIssuer,
+    });
+
+    const sellItemsTerms = harden({
+      pricePerItem,
+    });
+    // FIXME EProxy types, startInstance is any
+    const instanceRecordP = E(zoeService).startInstance(
+      sellItemsInstallation,
+      issuerKeywordRecord,
+      sellItemsTerms,
+    );
+    return instanceRecordP.then(
+      ({ creatorInvitation, creatorFacet, instance, publicFacet }) => {
+        assert(creatorInvitation);
+        return E(zoeService)
+          .offer(creatorInvitation, proposal, paymentKeywordRecord)
+          .then(sellItemsCreatorSeat => {
+            return harden({
+              sellItemsCreatorSeat,
+              sellItemsCreatorFacet: creatorFacet,
+              sellItemsInstance: instance,
+              sellItemsPublicFacet: publicFacet,
+            });
+          });
+      },
+    );
   };
 
+  /** @type {MintAndSellNFTCreatorFacet} */
   const creatorFacet = Far('creatorFacet', {
-    // The creator of the instance can send invitations to anyone
-    // they wish to.
-    makeInvitation: () => zcf.makeInvitation(mintPayment, 'mint a payment'),
-    getTokenIssuer: () => issuer,
+    sellTokens,
+    getIssuer: () => issuer,
   });
 
-  const publicFacet = Far('publicFacet', {
-    // Make the token issuer public. Note that only the mint can
-    // make new digital assets. The issuer is ok to make public.
-    getTokenIssuer: () => issuer,
-  });
-
-  // Return the creatorFacet to the creator, so they can make
-  // invitations for others to get payments of tokens. Publish the
-  // publicFacet.
-  return harden({ creatorFacet, publicFacet });
+  return harden({ creatorFacet });
 };
 
 harden(start);
