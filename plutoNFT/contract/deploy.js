@@ -31,30 +31,32 @@ import { pursePetnames } from './petnames.js';
  * @param {(path: string) => string} pathResolve
  * @param {ERef<ZoeService>} zoe
  * @param {ERef<Board>} board
- * @returns {Promise<{ CONTRACT_NAME: string, INSTALLATION_BOARD_ID: string }>}
+ * @returns {Promise<{ CONTRACT_NAME: string, INSTALLATION_BOARD_ID: string,INSTALLATION_BOARD_ID_SELL_ITEMS:string }>}
  */
 const installBundle = async (pathResolve, zoe, board) => {
   // We must bundle up our contract code (./src/contract.js)
   // and install it on Zoe. This returns an installationHandle, an
   // opaque, unforgeable identifier for our contract code that we can
   // reuse again and again to create new, live contract instances.
-  const bundle = await bundleSource(pathResolve(`./src/contract.js`));
-  const installation = await E(zoe).install(bundle);
+  // const bundle = await bundleSource(pathResolve(`./src/contract.js`));
+  // const installation = await E(zoe).install(bundle);
 
-  // Let's share this installation with other people, so that
-  // they can run our contract code by making a contract
-  // instance (see the api deploy script in this repo to see an
-  // example of how to use the installation to make a new contract
-  // instance.)
-  // To share the installation, we're going to put it in the
-  // board. The board is a shared, on-chain object that maps
-  // strings to objects.
-  const CONTRACT_NAME = 'fungibleFaucet';
-  const INSTALLATION_BOARD_ID = await E(board).getId(installation);
+  const mintAndSellNFTBundle = await bundleSource(pathResolve(`./src/contract.js`));
+  const mintAndSellNFTInstallation = await E(zoe).install(mintAndSellNFTBundle);
+
+  const sellItemsBundle = await bundleSource(pathResolve(`./src/sellItems.js`));
+  const sellItemsInstallation = await E(zoe).install(sellItemsBundle);
+
+
+  const CONTRACT_NAME = 'plutoNFT';
+  const INSTALLATION_BOARD_ID = await E(board).getId(mintAndSellNFTInstallation);
+
+  const INSTALLATION_BOARD_ID_SELL_ITEMS = await E(board).getId(sellItemsInstallation);
+
   console.log('- SUCCESS! contract code installed on Zoe');
   console.log(`-- Contract Name: ${CONTRACT_NAME}`);
   console.log(`-- Installation Board Id: ${INSTALLATION_BOARD_ID}`);
-  return { CONTRACT_NAME, INSTALLATION_BOARD_ID };
+  return { CONTRACT_NAME, INSTALLATION_BOARD_ID, INSTALLATION_BOARD_ID_SELL_ITEMS };
 };
 
 /**
@@ -110,8 +112,8 @@ const deployContract = async (homePromise, { pathResolve }) => {
     faucet,
   } = home;
 
-  await sendDeposit(wallet, faucet);
-  const { CONTRACT_NAME, INSTALLATION_BOARD_ID } = await installBundle(
+//  await sendDeposit(wallet, faucet);
+  const { CONTRACT_NAME, INSTALLATION_BOARD_ID,INSTALLATION_BOARD_ID_SELL_ITEMS } = await installBundle(
     pathResolve,
     zoe,
     board,
@@ -121,6 +123,7 @@ const deployContract = async (homePromise, { pathResolve }) => {
   const dappConstants = {
     CONTRACT_NAME,
     INSTALLATION_BOARD_ID,
+    INSTALLATION_BOARD_ID_SELL_ITEMS
   };
   const defaultsFolder = pathResolve(`../ui/public/conf`);
   const defaultsFile = pathResolve(

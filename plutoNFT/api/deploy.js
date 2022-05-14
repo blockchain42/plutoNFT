@@ -10,6 +10,8 @@ import '@agoric/zoe/exported.js';
 
 import installationConstants from '../ui/public/conf/installationConstants.js';
 
+import { AmountMath, makeIssuerKit, AssetKind } from '@agoric/ertp';
+
 // deploy.js runs in an ephemeral Node.js outside of swingset. The
 // spawner runs within ag-solo, so is persistent.  Once the deploy.js
 // script ends, connections to any of its objects are severed.
@@ -63,6 +65,7 @@ export default async function deployApi(
     // This is a scratch pad specific to the current ag-solo and inaccessible
     // from the chain.
     uploads: scratch,
+    wallet,
 
     // The board is an on-chain object that is used to make private
     // on-chain objects public to everyone else on-chain. These
@@ -76,18 +79,37 @@ export default async function deployApi(
   // To get the backend of our dapp up and running, first we need to
   // grab the installation that our contract deploy script put
   // in the public board.
-  const { INSTALLATION_BOARD_ID, CONTRACT_NAME } = installationConstants;
-  const installation = await E(board).getValue(INSTALLATION_BOARD_ID);
+  const { INSTALLATION_BOARD_ID, CONTRACT_NAME, INSTALLATION_BOARD_ID_SELL_ITEMS } = installationConstants;
+  const mintAndSellNFTInstallation = await E(board).getValue(INSTALLATION_BOARD_ID);
+  const sellItemsInstallation = await E(board).getValue(INSTALLATION_BOARD_ID_SELL_ITEMS);
 
-  // Second, we can use the installation to create a new instance of
-  // our contract code on Zoe. A contract instance is a running
-  // program that can take offers through Zoe. Making an instance will
-  // give us a `creatorFacet` that will let us make invitations we can
-  // send to users.
+  const issuersArray = await E(wallet).getIssuers();
+  const issuers = new Map(issuersArray);
+  const bldIssuer = issuers.get('BLD');
+  // const runIssuer = issuers.get('RUN');
 
-  const { creatorFacet, instance, publicFacet } = await E(zoe).startInstance(
-    installation,
+  const bldBrand = await E(bldIssuer).getBrand();
+  // const runBrand = await E(runIssuer).getBrand();
+
+
+  const { creatorFacet } = await E(zoe).startInstance(
+    mintAndSellNFTInstallation,
   );
+
+  const imageURI = 'pluto.agoric.nft/'
+
+  const { sellItemsInstance,sellItemsCreatorFacet,
+    sellItemsPublicFacet, } = await E(
+      creatorFacet,
+  ).sellTokens({
+    customValueProperties: {
+      uri: imageURI
+    },
+    count: 3,
+    moneyIssuer: bldIssuer,
+    sellItemsInstallation,
+    pricePerItem: AmountMath.make(bldBrand, 1n),
+  });
 
   console.log('- SUCCESS! contract instance is running on Zoe');
 
@@ -95,10 +117,10 @@ export default async function deployApi(
   const invitationIssuerP = E(zoe).getInvitationIssuer();
   const invitationBrandP = E(invitationIssuerP).getBrand();
 
-  const tokenIssuer = await E(publicFacet).getTokenIssuer();
+  const tokenIssuer = await E(creatorFacet).getIssuer();
 
   // Set up our token to be used by other dapps (like our card store).
-  E(scratch).set('faucetTokenIssuer', tokenIssuer);
+  E(scratch).set('plutoNFTIssuer', tokenIssuer);
 
   const tokenBrand = await E(tokenIssuer).getBrand();
 
@@ -109,7 +131,7 @@ export default async function deployApi(
     TOKEN_BRAND_BOARD_ID,
     TOKEN_ISSUER_BOARD_ID,
   ] = await Promise.all([
-    E(board).getId(instance),
+    E(board).getId(sellItemsInstance),
     E(board).getId(tokenBrand),
     E(board).getId(tokenIssuer),
   ]);
@@ -135,7 +157,7 @@ export default async function deployApi(
 
     // Spawn the installed code to create an URL handler.
     const handler = E(handlerInstall).spawn({
-      creatorFacet,
+      creatorFacet: sellItemsCreatorFacet,
       board,
       http,
       invitationIssuer,
