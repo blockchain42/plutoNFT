@@ -12,14 +12,15 @@ const {
   INVITE_BRAND_BOARD_ID,
   INSTANCE_BOARD_ID,
   INSTALLATION_BOARD_ID,
-  issuerBoardIds: { Token: TOKEN_ISSUER_BOARD_ID },
-  brandBoardIds: { Token: TOKEN_BRAND_BOARD_ID },
+  issuerBoardIds: { Token: TOKEN_ISSUER_BOARD_ID, Money:MONEY_ISSUER_BOARD_ID },
+  brandBoardIds: { Token: TOKEN_BRAND_BOARD_ID, Money: MONEY_BRAND_BOARD_ID },
 } = dappConstants;
 
 export default async function main() {
   let zoeInvitationDepositFacetId;
   let apiSend;
   let tokenPursePetname = ['FungibleFaucet', 'Token'];
+  let moneyPursePetname = ['BLD', 'Agoric staking token']
   let walletP;
   const offers = new Set();
 
@@ -37,17 +38,33 @@ export default async function main() {
     }
     $mintFungible.removeAttribute('disabled');
     $mintFungible.addEventListener('click', () => {
+      console.log(tokenPursePetname);
+      console.log(moneyPursePetname);
       const offer = {
         // JSONable ID for this offer.  This is scoped to the origin.
         id: Date.now(),
 
+        // proposalTemplate: {
+        //   want: {
+        //     Token: {
+        //       pursePetname: tokenPursePetname,
+        //       value: 1000,
+        //     },
+        //   },
+        // },
+
         proposalTemplate: {
           want: {
-            Token: {
-              pursePetname: tokenPursePetname,
-              value: 1000,
-            },
+            Items: [{
+              pursePetName: tokenPursePetname,
+              value:{ number: 1, uri: 'pluto.agoric.nft/1' }}]
           },
+          give: {
+            Money:{
+              pursePetname: moneyPursePetname,
+              value:1
+            }
+          }
         },
 
         // Tell the wallet that we're handling the offer result.
@@ -92,6 +109,15 @@ export default async function main() {
     if (tokenPurse && tokenPurse.pursePetname) {
       // If we got a petname for that purse, use it in the offers we create.
       tokenPursePetname = tokenPurse.pursePetname;
+    }
+
+    const moneyPurse = purses.find(
+      // Does the purse's brand match our token brand?
+      ({ brandBoardId }) => brandBoardId === MONEY_BRAND_BOARD_ID,
+    );
+    if (moneyPurse && moneyPurse.pursePetname) {
+      // If we got a petname for that purse, use it in the offers we create.
+      moneyPursePetname = moneyPurse.pursePetname;
     }
   };
 

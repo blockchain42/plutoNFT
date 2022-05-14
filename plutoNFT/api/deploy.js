@@ -130,17 +130,22 @@ export default async function deployApi(
     INSTANCE_BOARD_ID,
     TOKEN_BRAND_BOARD_ID,
     TOKEN_ISSUER_BOARD_ID,
+    MONEY_BRAND_BOARD_ID,
+    MONEY_ISSUER_BOARD_ID
   ] = await Promise.all([
     E(board).getId(sellItemsInstance),
     E(board).getId(tokenBrand),
     E(board).getId(tokenIssuer),
+    E(board).getId(bldBrand),
+    E(board).getId(bldIssuer)
   ]);
 
   console.log(`-- Contract Name: ${CONTRACT_NAME}`);
   console.log(`-- INSTANCE_BOARD_ID: ${INSTANCE_BOARD_ID}`);
   console.log(`-- TOKEN_ISSUER_BOARD_ID: ${TOKEN_ISSUER_BOARD_ID}`);
   console.log(`-- TOKEN_BRAND_BOARD_ID: ${TOKEN_BRAND_BOARD_ID}`);
-
+  console.log(`-- MONEY_BRAND_BOARD_ID: ${MONEY_BRAND_BOARD_ID}`);
+  console.log(`-- MONEY_ISSUER_BOARD_ID: ${MONEY_ISSUER_BOARD_ID}`);
   // We want the handler to run persistently. (Scripts such as this
   // deploy.js script are ephemeral and all connections to objects
   // within this script are severed when the script is done running.)
@@ -183,8 +188,9 @@ export default async function deployApi(
     // BRIDGE_URL: 'agoric-lookup:https://local.agoric.com?append=/bridge',
     brandBoardIds: {
       Token: TOKEN_BRAND_BOARD_ID,
+      Money: MONEY_BRAND_BOARD_ID,
     },
-    issuerBoardIds: { Token: TOKEN_ISSUER_BOARD_ID },
+    issuerBoardIds: { Token: TOKEN_ISSUER_BOARD_ID, Money: MONEY_ISSUER_BOARD_ID },
     BRIDGE_URL: 'http://127.0.0.1:8000',
     API_URL,
   };

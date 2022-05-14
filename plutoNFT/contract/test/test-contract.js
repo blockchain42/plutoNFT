@@ -127,6 +127,8 @@ test(`mint images`, async t=> {
     // make the corresponding amount
     const image1Amount = AmountMath.make(plutoBrand, harden([image1Value]));
 
+    console.log(image1Amount);
+
     const buyersProposal = harden({
       give: { Money: terms.pricePerItem },
       want: { Items: image1Amount },
