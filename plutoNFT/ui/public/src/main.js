@@ -20,7 +20,7 @@ export default async function main() {
   let zoeInvitationDepositFacetId;
   let apiSend;
   let tokenPursePetname = ['FungibleFaucet', 'Token'];
-  let moneyPursePetname = ['BLD', 'Agoric staking token']
+  let moneyPursePetname =  'Agoric staking token'
   let walletP;
   const offers = new Set();
 
@@ -43,26 +43,17 @@ export default async function main() {
       const offer = {
         // JSONable ID for this offer.  This is scoped to the origin.
         id: Date.now(),
-
-        // proposalTemplate: {
-        //   want: {
-        //     Token: {
-        //       pursePetname: tokenPursePetname,
-        //       value: 1000,
-        //     },
-        //   },
-        // },
-
         proposalTemplate: {
           want: {
-            Items: [{
-              pursePetName: tokenPursePetname,
-              value:{ number: 1, uri: 'pluto.agoric.nft/1' }}]
+            Items: {
+              pursePetname: tokenPursePetname,
+              value:[{ number: 2, uri: 'pluto.agoric.nft/2' }]
+            }
           },
           give: {
             Money:{
               pursePetname: moneyPursePetname,
-              value:1
+              value:1000000
             }
           }
         },
@@ -110,7 +101,6 @@ export default async function main() {
       // If we got a petname for that purse, use it in the offers we create.
       tokenPursePetname = tokenPurse.pursePetname;
     }
-
     const moneyPurse = purses.find(
       // Does the purse's brand match our token brand?
       ({ brandBoardId }) => brandBoardId === MONEY_BRAND_BOARD_ID,
