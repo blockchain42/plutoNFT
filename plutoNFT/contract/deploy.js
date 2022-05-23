@@ -88,8 +88,8 @@ const startInstance = async (
   const nftBrand = await E(nftIssuer).getBrand();
 
   const [
-    INSTANCE_BOARD_ID,
     INSTANCE_NFT_BOARD_ID,
+    INSTANCE_BOARD_ID,
     TOKEN_BRAND_BOARD_ID,
     TOKEN_ISSUER_BOARD_ID,
     MONEY_BRAND_BOARD_ID,
@@ -118,6 +118,7 @@ const startInstance = async (
 
   const dappConstants = {
     INSTANCE_BOARD_ID,
+    INSTANCE_NFT_BOARD_ID,
     INSTALLATION_BOARD_ID,
     INSTALLATION_NFT_BOARD_ID,
     INVITE_BRAND_BOARD_ID,
