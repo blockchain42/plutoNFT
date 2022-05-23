@@ -79,9 +79,17 @@ export default async function deployApi(
   // To get the backend of our dapp up and running, first we need to
   // grab the installation that our contract deploy script put
   // in the public board.
-  const { INSTALLATION_BOARD_ID, CONTRACT_NAME, INSTALLATION_BOARD_ID_SELL_ITEMS } = installationConstants;
-  const mintAndSellNFTInstallation = await E(board).getValue(INSTALLATION_BOARD_ID);
-  const sellItemsInstallation = await E(board).getValue(INSTALLATION_BOARD_ID_SELL_ITEMS);
+  const {
+    INSTALLATION_BOARD_ID,
+    CONTRACT_NAME,
+    INSTALLATION_BOARD_ID_SELL_ITEMS,
+  } = installationConstants;
+  const mintAndSellNFTInstallation = await E(board).getValue(
+    INSTALLATION_BOARD_ID,
+  );
+  const sellItemsInstallation = await E(board).getValue(
+    INSTALLATION_BOARD_ID_SELL_ITEMS,
+  );
 
   const issuersArray = await E(wallet).getIssuers();
   const issuers = new Map(issuersArray);
@@ -91,25 +99,22 @@ export default async function deployApi(
   const bldBrand = await E(bldIssuer).getBrand();
   // const runBrand = await E(runIssuer).getBrand();
 
-
   const { creatorFacet } = await E(zoe).startInstance(
     mintAndSellNFTInstallation,
   );
 
-  const imageURI = 'pluto.agoric.nft/'
+  const imageURI = 'pluto.agoric.nft/';
 
-  const { sellItemsInstance,sellItemsCreatorFacet,
-    sellItemsPublicFacet, } = await E(
-      creatorFacet,
-  ).sellTokens({
-    customValueProperties: {
-      uri: imageURI
-    },
-    count: 3,
-    moneyIssuer: bldIssuer,
-    sellItemsInstallation,
-    pricePerItem: AmountMath.make(bldBrand, 1n),
-  });
+  const { sellItemsInstance, sellItemsCreatorFacet, sellItemsPublicFacet } =
+    await E(creatorFacet).sellTokens({
+      customValueProperties: {
+        uri: imageURI,
+      },
+      count: 3,
+      moneyIssuer: bldIssuer,
+      sellItemsInstallation,
+      pricePerItem: AmountMath.make(bldBrand, 1n),
+    });
 
   console.log('- SUCCESS! contract instance is running on Zoe');
 
@@ -131,13 +136,13 @@ export default async function deployApi(
     TOKEN_BRAND_BOARD_ID,
     TOKEN_ISSUER_BOARD_ID,
     MONEY_BRAND_BOARD_ID,
-    MONEY_ISSUER_BOARD_ID
+    MONEY_ISSUER_BOARD_ID,
   ] = await Promise.all([
     E(board).getId(sellItemsInstance),
     E(board).getId(tokenBrand),
     E(board).getId(tokenIssuer),
     E(board).getId(bldBrand),
-    E(board).getId(bldIssuer)
+    E(board).getId(bldIssuer),
   ]);
 
   console.log(`-- Contract Name: ${CONTRACT_NAME}`);
@@ -166,6 +171,9 @@ export default async function deployApi(
       board,
       http,
       invitationIssuer,
+      zoe,
+      moneyBrand: bldBrand,
+      nftBrand: tokenBrand,
     });
 
     // Have our ag-solo wait on ws://localhost:8000/api/fungible-faucet for
@@ -190,7 +198,10 @@ export default async function deployApi(
       Token: TOKEN_BRAND_BOARD_ID,
       Money: MONEY_BRAND_BOARD_ID,
     },
-    issuerBoardIds: { Token: TOKEN_ISSUER_BOARD_ID, Money: MONEY_ISSUER_BOARD_ID },
+    issuerBoardIds: {
+      Token: TOKEN_ISSUER_BOARD_ID,
+      Money: MONEY_ISSUER_BOARD_ID,
+    },
     BRIDGE_URL: 'http://127.0.0.1:8000',
     API_URL,
   };
