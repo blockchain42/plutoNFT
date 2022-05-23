@@ -1,61 +1,89 @@
 // @ts-check
-import '@agoric/zoe/exported.js';
+
 import { AmountMath } from '@agoric/ertp';
+import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 
-/**
- * This is a very simple contract that creates a new issuer and mints payments
- * from it, in order to give an example of how that can be done.  This contract
- * sends new tokens to anyone who has an invitation.
- *
- * The expectation is that most contracts that want to do something similar
- * would use the ability to mint new payments internally rather than sharing
- * that ability widely as this one does.
- *
- * To pay others in tokens, the creator of the instance can make
- * invitations for them, which when used to make an offer, will payout
- * the specified amount of tokens.
- *
- * @type {ContractStartFn}
- */
-const start = async (zcf) => {
-  // Create the internal token mint for a fungible digital asset. Note
-  // that 'Tokens' is both the keyword and the allegedName.
-  const zcfMint = await zcf.makeZCFMint('Tokens');
-  // AWAIT
+import {
+  assertIssuerKeywords,
+  assertProposalShape,
+  assertNatAssetKind,
+  swap,
+} from '@agoric/zoe/src/contractSupport/index.js';
 
-  // Now that ZCF has saved the issuer, brand, and local amountMath, they
-  // can be accessed synchronously.
-  const { issuer, brand } = zcfMint.getIssuerRecord();
+/**
+@param {ZCF<{pricePerItem: Amount<'nat'>, moneyIssuer: Issuer<'nat'>, issuer: Issuer<'set'>, mintNft: Mint<'set'>}>} zcf
+ */
+const start = (zcf) => {
+  const { pricePerItem, moneyIssuer, issuer, mintNft } = zcf.getTerms();
+  const allKeywords = ['Money', 'Item'];
+  assertNatAssetKind(zcf, pricePerItem.brand);
+  assertIssuerKeywords(zcf, harden(allKeywords));
+
+  const zoeService = zcf.getZoeService();
+
+  const createNTF = async (data) => {
+    const brand = issuer.getBrand();
+
+    const nftAmount = AmountMath.make(brand, harden([data]));
+
+    const nftPayment = mintNft.mintPayment(nftAmount);
+
+    const proposal = harden({
+      give: { Item: nftAmount },
+      want: { Money: pricePerItem },
+    });
+    const paymentKeywordRecord = harden({ Item: nftPayment });
+
+    const creatorInvitation = await zcf.makeInvitation(
+      sellerInvitation,
+      'creatorOffer',
+    );
+
+    const seat = await E(zoeService).offer(
+      creatorInvitation,
+      proposal,
+      paymentKeywordRecord,
+    );
+
+    return seat;
+  };
 
   /** @type {OfferHandler} */
-  const mintPayment = (seat) => {
-    const amount = AmountMath.make(brand, 1000n);
-    // Synchronously mint and allocate amount to seat.
-    zcfMint.mintGains(harden({ Token: amount }), seat);
-    // Exit the seat so that the user gets a payout.
-    seat.exit();
-    // Since the user is getting the payout through Zoe, we can
-    // return anything here. Let's return some helpful instructions.
-    return 'Offer completed. You should receive a payment from Zoe';
+  const sellerInvitation = (sellerSeat) => {
+    assertProposalShape(sellerSeat, {
+      give: { Item: null },
+      want: { Money: null },
+    });
+    const { want, give } = sellerSeat.getProposal();
+
+    /** @type {OfferHandler} */
+    const buyersOfferHandler = (buyerSeat) => {
+      const result = swap(zcf, sellerSeat, buyerSeat);
+      return result;
+    };
+
+    const buyersInvitation = zcf.makeInvitation(
+      buyersOfferHandler,
+      'buyerOffer',
+      {
+        Item: want.Item,
+        Money: give.Money,
+      },
+    );
+
+    return buyersInvitation;
   };
 
   const creatorFacet = Far('creatorFacet', {
-    // The creator of the instance can send invitations to anyone
-    // they wish to.
-    makeInvitation: () => zcf.makeInvitation(mintPayment, 'mint a payment'),
-    getTokenIssuer: () => issuer,
+    mintNFT: (data) => createNTF(data),
   });
 
   const publicFacet = Far('publicFacet', {
-    // Make the token issuer public. Note that only the mint can
-    // make new digital assets. The issuer is ok to make public.
-    getTokenIssuer: () => issuer,
+    getNftIssuer: () => issuer,
+    getMoneyIssuer: () => moneyIssuer,
   });
 
-  // Return the creatorFacet to the creator, so they can make
-  // invitations for others to get payments of tokens. Publish the
-  // publicFacet.
   return harden({ creatorFacet, publicFacet });
 };
 

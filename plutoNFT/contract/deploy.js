@@ -5,6 +5,8 @@ import '@agoric/zoe/exported.js';
 import { E } from '@endo/eventual-send';
 import bundleSource from '@endo/bundle-source';
 
+import { makeIssuerKit, AmountMath, isSetValue, AssetKind } from '@agoric/ertp';
+
 import { pursePetnames } from './petnames.js';
 
 // This script takes our contract code, installs it on Zoe, and makes
@@ -31,30 +33,114 @@ import { pursePetnames } from './petnames.js';
  * @param {(path: string) => string} pathResolve
  * @param {ERef<ZoeService>} zoe
  * @param {ERef<Board>} board
- * @returns {Promise<{ CONTRACT_NAME: string, INSTALLATION_BOARD_ID: string }>}
+ * @returns {Promise<{ INSTALLATION_BOARD_ID: string, INSTALLATION_NFT_BOARD_ID:string }>}
  */
 const installBundle = async (pathResolve, zoe, board) => {
-  // We must bundle up our contract code (./src/contract.js)
-  // and install it on Zoe. This returns an installationHandle, an
-  // opaque, unforgeable identifier for our contract code that we can
-  // reuse again and again to create new, live contract instances.
   const bundle = await bundleSource(pathResolve(`./src/contract.js`));
   const installation = await E(zoe).install(bundle);
 
-  // Let's share this installation with other people, so that
-  // they can run our contract code by making a contract
-  // instance (see the api deploy script in this repo to see an
-  // example of how to use the installation to make a new contract
-  // instance.)
-  // To share the installation, we're going to put it in the
-  // board. The board is a shared, on-chain object that maps
-  // strings to objects.
-  const CONTRACT_NAME = 'fungibleFaucet';
+  const bundleNft = await bundleSource(pathResolve(`./src/plutoNFT.js`));
+  const installationNft = await E(zoe).install(bundleNft);
+
   const INSTALLATION_BOARD_ID = await E(board).getId(installation);
+  const INSTALLATION_NFT_BOARD_ID = await E(board).getId(installationNft);
+
   console.log('- SUCCESS! contract code installed on Zoe');
-  console.log(`-- Contract Name: ${CONTRACT_NAME}`);
   console.log(`-- Installation Board Id: ${INSTALLATION_BOARD_ID}`);
-  return { CONTRACT_NAME, INSTALLATION_BOARD_ID };
+  console.log(`-- Installation NFT Board Id: ${INSTALLATION_NFT_BOARD_ID}`);
+  return { INSTALLATION_BOARD_ID, INSTALLATION_NFT_BOARD_ID };
+};
+
+const startInstance = async (
+  pathResolve,
+  board,
+  wallet,
+  zoe,
+  INSTALLATION_BOARD_ID,
+  INSTALLATION_NFT_BOARD_ID,
+) => {
+  const installation = await E(board).getValue(INSTALLATION_BOARD_ID);
+
+  const installationNFT = await E(board).getValue(INSTALLATION_NFT_BOARD_ID);
+
+  const issuersArray = await E(wallet).getIssuers();
+  const issuers = new Map(issuersArray);
+  const bldIssuer = issuers.get('BLD');
+  const bldBrand = await E(bldIssuer).getBrand();
+
+  const pricePerItem = AmountMath.make(bldBrand, 1n);
+
+  const { creatorFacet, instance } = await E(zoe).startInstance(
+    installationNFT,
+  );
+
+  const {
+    creatorFacet: sellerCreatorFacet,
+    publicFacet: sellerPublicFacet,
+    instance: sellerInstance,
+  } = await E(creatorFacet).createInstance({
+    pricePerItem,
+    moneyIssuer: bldIssuer,
+    sellerInstallation: installation,
+  });
+
+  const nftIssuer = await E(creatorFacet).getIssuer();
+  const nftBrand = await E(nftIssuer).getBrand();
+
+  const [
+    INSTANCE_NFT_BOARD_ID,
+    INSTANCE_BOARD_ID,
+    TOKEN_BRAND_BOARD_ID,
+    TOKEN_ISSUER_BOARD_ID,
+    MONEY_BRAND_BOARD_ID,
+    MONEY_ISSUER_BOARD_ID,
+  ] = await Promise.all([
+    E(board).getId(instance),
+    E(board).getId(sellerInstance),
+    E(board).getId(nftBrand),
+    E(board).getId(nftIssuer),
+    E(board).getId(bldBrand),
+    E(board).getId(bldIssuer),
+  ]);
+
+  console.log(`-- INSTANCE_BOARD_ID: ${INSTANCE_BOARD_ID}`);
+  console.log(`-- INSTANCE_NFT_BOARD_ID: ${INSTANCE_NFT_BOARD_ID}`);
+  console.log(`-- TOKEN_ISSUER_BOARD_ID: ${TOKEN_ISSUER_BOARD_ID}`);
+  console.log(`-- TOKEN_BRAND_BOARD_ID: ${TOKEN_BRAND_BOARD_ID}`);
+  console.log(`-- MONEY_ISSUER_BOARD_ID: ${MONEY_ISSUER_BOARD_ID}`);
+  console.log(`-- MONEY_BRAND_BOARD_ID: ${MONEY_BRAND_BOARD_ID}`);
+
+  const invitationIssuerP = E(zoe).getInvitationIssuer();
+  const invitationBrandP = E(invitationIssuerP).getBrand();
+
+  const invitationBrand = await invitationBrandP;
+  const INVITE_BRAND_BOARD_ID = await E(board).getId(invitationBrand);
+
+  const dappConstants = {
+    INSTANCE_BOARD_ID,
+    INSTANCE_NFT_BOARD_ID,
+    INSTALLATION_BOARD_ID,
+    INSTALLATION_NFT_BOARD_ID,
+    INVITE_BRAND_BOARD_ID,
+    // BRIDGE_URL: 'agoric-lookup:https://local.agoric.com?append=/bridge',
+    brandBoardIds: {
+      Token: TOKEN_BRAND_BOARD_ID,
+      Money: MONEY_BRAND_BOARD_ID,
+    },
+    issuerBoardIds: {
+      Token: TOKEN_ISSUER_BOARD_ID,
+      Money: MONEY_ISSUER_BOARD_ID,
+    },
+    // BRIDGE_URL: 'http://127.0.0.1:8000',
+    // API_URL,
+  };
+  const defaultsFile = pathResolve(`../ui/public/conf/defaults.js`);
+  console.log('writing', defaultsFile);
+  const defaultsContents = `\
+// GENERATED FROM ${pathResolve('./deploy.js')}
+export default ${JSON.stringify(dappConstants, undefined, 2)};
+`;
+  await fs.promises.writeFile(defaultsFile, defaultsContents);
 };
 
 /**
@@ -110,17 +196,23 @@ const deployContract = async (homePromise, { pathResolve }) => {
     faucet,
   } = home;
 
-  await sendDeposit(wallet, faucet);
-  const { CONTRACT_NAME, INSTALLATION_BOARD_ID } = await installBundle(
+  //  await sendDeposit(wallet, faucet);
+  const { INSTALLATION_BOARD_ID, INSTALLATION_NFT_BOARD_ID } =
+    await installBundle(pathResolve, zoe, board);
+
+  await startInstance(
     pathResolve,
-    zoe,
     board,
+    wallet,
+    zoe,
+    INSTALLATION_BOARD_ID,
+    INSTALLATION_NFT_BOARD_ID,
   );
 
   // Save the constants somewhere where the UI and api can find it.
   const dappConstants = {
-    CONTRACT_NAME,
     INSTALLATION_BOARD_ID,
+    INSTALLATION_NFT_BOARD_ID,
   };
   const defaultsFolder = pathResolve(`../ui/public/conf`);
   const defaultsFile = pathResolve(
