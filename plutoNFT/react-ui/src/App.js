@@ -4,15 +4,21 @@ import { observeNotifier } from '@agoric/notifier';
 
 import React, { useCallback, useState } from 'react';
 import { makeReactAgoricWalletConnection } from '@agoric/wallet-connection/react';
-// import moolaMinterConstants from './moolaMinterConstants.mjs';
-// import nftMinterConstants from './nftMinterConstants';
-
-import './App.css';
 import { AmountMath } from '../../contract/node_modules/@agoric/ertp/src';
 
-const INSTALLATION_BOARD_ID = 'board04719';
-const INSTALLATION_NFT_BOARD_ID = 'board06120';
-const BLD_ISSUER_BOARD_ID = 'board05815';
+import './App.css';
+import dappConstants from './constants';
+import AgoricLogo from './agLogo.png';
+
+const INSTALLATION_BOARD_ID = dappConstants.INSTALLATION_BOARD_ID;
+const INSTALLATION_NFT_BOARD_ID = dappConstants.INSTALLATION_NFT_BOARD_ID;
+const BLD_ISSUER_BOARD_ID = dappConstants.BLD_ISSUER_BOARD_ID;
+console.log(
+  'dapp ids ',
+  INSTALLATION_BOARD_ID,
+  INSTALLATION_NFT_BOARD_ID,
+  BLD_ISSUER_BOARD_ID,
+);
 
 // Create a wrapper for agoric-wallet-connection that is specific to
 // the app's instance of React.
@@ -21,9 +27,14 @@ const AgoricWalletConnection = makeReactAgoricWalletConnection(React);
 const MyWalletConnection = (props) => {
   const [tokenPursePetname, setTokenPursePetname] = useState();
   const [awesomezPursePetname, setAwesomezPursePetname] = useState();
-  const [agoricInterface, setAgoricInterface] = useState();
-  const [walletOffers, setWalletOffers] = useState([]);
-  const [stuff, setStuff] = useState({});
+  // const [agoricInterface, setAgoricInterface] = useState();
+  // const [walletOffers, setWalletOffers] = useState([]);
+  const [agoricInterface, setAgoricInterface] = useState({});
+  const [nft, setNft] = useState({
+    id: '',
+    collectionName: '',
+    assetName: '',
+  })
 
   const setupWalletConnection = async (walletConnection) => {
     // This is one of the only methods that the wallet connection facet allows.
@@ -58,7 +69,7 @@ const MyWalletConnection = (props) => {
       sellerInstallation: installation,
     });
     const INSTANCE_BOARD_ID = await E(board).getId(sellerInstance);
-    setStuff({
+    setAgoricInterface({
       creatorFacet: sellerCreatorFacet,
       boardId: INSTANCE_NFT_BOARD_ID,
       walletBridge: walletBridge,
@@ -79,7 +90,7 @@ const MyWalletConnection = (props) => {
       INSTANCE_NFT_BOARD_ID,
     );
 
-    setAgoricInterface({ zoe, board, walletBridge });
+    // setAgoricInterface({ zoe, board, walletBridge });
 
     const BLD_BRAND_BOARD_ID = await E(board).getId(bldBrand);
     const NFT_BRAND_BOARD_ID = await E(board).getId(nftBrand);
@@ -119,7 +130,7 @@ const MyWalletConnection = (props) => {
     observeNotifier(E(walletBridge).getOffersNotifier(), {
       updateState: (walletOffers) => {
         console.log(walletOffers);
-        setWalletOffers(walletOffers);
+        // setWalletOffers(walletOffers);
       },
     });
   };
@@ -145,10 +156,11 @@ const MyWalletConnection = (props) => {
     }
   }, []);
 
-  async function mintMeNft() {
-    const nft = {
-      uri: 'pluto.agoric.nft/2',
-    };
+  async function mintMeNft(nft) {
+    console.log('NFT to mint: ', nft)
+    // const nft = {
+    //   uri: 'pluto.agoric.nft/2',
+    // };
     const offer = {
       proposalTemplate: {
         want: {
@@ -168,7 +180,7 @@ const MyWalletConnection = (props) => {
       dappContext: true,
     };
 
-    const sellerSeat = await E(stuff.creatorFacet).mintNFT(nft);
+    const sellerSeat = await E(agoricInterface.creatorFacet).mintNFT(nft);
 
     const buyersInvitation = await E(sellerSeat).getOfferResult();
 
@@ -179,13 +191,61 @@ const MyWalletConnection = (props) => {
       ...offer,
     };
 
-    await E(stuff.walletBridge).addOffer(updatedOffer);
+    await E(agoricInterface.walletBridge).addOffer(updatedOffer);
   }
 
   return (
     <>
-      <button onClick={() => mintMeNft()}>Push me!</button>
-      <AgoricWalletConnection onState={onWalletState} />
+    { !agoricInterface || !tokenPursePetname || !awesomezPursePetname 
+    ?
+      <div id="Interface-activation">
+      <div className="Loader" />
+      <p>
+        Waiting for Agoric interface to be activated (click <b>Accept</b> in
+        your Agoric wallet)...
+      </p>
+    </div>
+    :
+      <div>
+      <div id="nftform" className="nftForm">
+        <div>
+          <label htmlFor="nftId">ID</label>
+          <input 
+            type="text" 
+            name="nftId" 
+            id="nftId" 
+            onChange={(e) => setNft({...nft, id: e.target.value})}
+            value={nft.id}
+          />
+        </div>
+        <div>
+          <label htmlFor="nftId">Collection name</label>
+          <input 
+            type="text" 
+            name="nftId" 
+            id="nftId"
+            onChange={(e) => setNft({...nft, collectionName: e.target.value})}
+            value={nft.collectionName} 
+          />
+        </div>
+        <div>
+          <label htmlFor="nftId">Asset name</label>
+          <input 
+            type="text" 
+            name="nftId" 
+            id="nftId"
+            onChange={(e) => setNft({...nft, assetName: e.target.value})}
+            value={nft.assetName} 
+          />
+        </div>
+      </div>
+      <button onClick={() => mintMeNft(nft)}>MINT NFT</button>
+    </div>
+    }
+      <AgoricWalletConnection
+        style={{ display: 'none' }}
+        onState={onWalletState}
+      />
     </>
   );
 };
@@ -193,7 +253,11 @@ const MyWalletConnection = (props) => {
 function App() {
   return (
     <div className="App">
-      <MyWalletConnection />
+      <header className="App-header">
+        <img className="Logo" src={AgoricLogo} alt="Logo" />
+        <p>NFT minting demo by BLOCKCHAIN 42</p>
+        <MyWalletConnection />
+      </header>
     </div>
   );
 }

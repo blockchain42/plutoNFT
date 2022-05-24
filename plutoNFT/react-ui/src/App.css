@@ -2,37 +2,95 @@
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
 
 .App-header {
-  background-color: #282c34;
+  background-color: white;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: calc(10px + 2vmin);
-  color: white;
+  color: black;
 }
 
 .App-link {
   color: #61dafb;
 }
 
-@keyframes App-logo-spin {
-  from {
+.nftForm {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+}
+
+label {
+  display: inline-block;
+  width: 150px;
+  text-align: right;
+  font-size: 1rem;
+  padding-right: 1rem;
+}
+
+input {
+  padding: 0.5rem 0.75rem;
+  outline: none;
+}
+
+input:focus {
+  border: 2px solid #D73252;
+  border-radius: 3px;
+}
+
+button {
+  margin: 2rem;
+  padding: 25px 50px 25px 50px;
+  background-color: #D73252;
+  cursor: pointer;
+  border-radius: 5px;
+  border: 1px solid black;
+}
+
+.Loader {
+  border: 3px solid #c72242;
+  border-radius: 50%;
+  border-top: 3px solid white;
+  width: 20px;
+  height: 20px;
+  -webkit-animation: spin 2s linear infinite;
+  /* Safari */
+  animation: spin 2s linear infinite;
+}
+
+@-webkit-keyframes spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+  }
+
+  100% {
+    -webkit-transform: rotate(360deg);
+  }
+}
+
+@keyframes spin {
+  0% {
     transform: rotate(0deg);
   }
-  to {
+
+  100% {
     transform: rotate(360deg);
   }
 }
+
+#Interface-activation {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+#Interface-activation p {
+  margin: 0 0 0 14px;
+  font-size: 18px;
+  color: #637189;
+}
+
