@@ -1,13 +1,12 @@
 {
-  "name": "plutoNFT",
+  "name": "pluto-nft",
   "version": "0.0.1",
   "private": true,
   "useWorkspaces": true,
   "workspaces": [
-    "api",
     "contract",
     "_agstate/agoric-servers",
-    "ui"
+    "react-ui"
   ],
   "devDependencies": {
     "@endo/eslint-plugin": "^0.3.24",
@@ -36,12 +35,6 @@
   },
   "dependencies": {
     "agoric": "^0.14.1"
-  },
-  "ava": {
-    "files": [
-      "integration-test/**/test-*.mjs"
-    ],
-    "timeout": "20m"
   },
   "prettier": {
     "trailingComma": "all",
