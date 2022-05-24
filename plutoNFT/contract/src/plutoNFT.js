@@ -1,6 +1,5 @@
 // @ts-check
 
-import { AmountMath } from '@agoric/ertp';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 
@@ -9,11 +8,7 @@ import { AssetKind, makeIssuerKit } from '@agoric/ertp';
 const start = (zcf) => {
   const { tokenName = 'tokenName' } = zcf.getTerms();
 
-  const {
-    brand,
-    issuer,
-    mint: mintNft,
-  } = makeIssuerKit(tokenName, AssetKind.SET);
+  const { issuer, mint: mintNft } = makeIssuerKit(tokenName, AssetKind.SET);
 
   const zoeService = zcf.getZoeService();
 
@@ -42,8 +37,6 @@ const start = (zcf) => {
 
     const { creatorFacet, instance, publicFacet } = await instanceRecordP;
 
-    console.log('after installation');
-    console.log(creatorFacet);
     assert(instance);
 
     return harden({ creatorFacet, instance, publicFacet });

@@ -43,6 +43,7 @@ RUN npm --version
 RUN npm install --global yarn \
     && git clone https://github.com/Agoric/agoric-sdk \
     && cd agoric-sdk \
+    && git checkout beta \
     && yarn install \
     && yarn build \
     && yarn link-cli ~/bin/agoric

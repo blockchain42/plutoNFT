@@ -33,9 +33,9 @@ import { pursePetnames } from './petnames.js';
  * @param {(path: string) => string} pathResolve
  * @param {ERef<ZoeService>} zoe
  * @param {ERef<Board>} board
- * @returns {Promise<{ INSTALLATION_BOARD_ID: string, INSTALLATION_NFT_BOARD_ID:string }>}
+ * @returns {Promise<{ INSTALLATION_BOARD_ID: string, INSTALLATION_NFT_BOARD_ID:string, BLD_ISSUER_BOARD_ID:string }>}
  */
-const installBundle = async (pathResolve, zoe, board) => {
+const installBundle = async (pathResolve, zoe, board, wallet) => {
   const bundle = await bundleSource(pathResolve(`./src/contract.js`));
   const installation = await E(zoe).install(bundle);
 
@@ -45,10 +45,21 @@ const installBundle = async (pathResolve, zoe, board) => {
   const INSTALLATION_BOARD_ID = await E(board).getId(installation);
   const INSTALLATION_NFT_BOARD_ID = await E(board).getId(installationNft);
 
+  const issuersArray = await E(wallet).getIssuers();
+  const issuers = new Map(issuersArray);
+  const bldIssuer = issuers.get('BLD');
+  const BLD_ISSUER_BOARD_ID = await E(board).getId(bldIssuer);
+
   console.log('- SUCCESS! contract code installed on Zoe');
   console.log(`-- Installation Board Id: ${INSTALLATION_BOARD_ID}`);
   console.log(`-- Installation NFT Board Id: ${INSTALLATION_NFT_BOARD_ID}`);
-  return { INSTALLATION_BOARD_ID, INSTALLATION_NFT_BOARD_ID };
+  console.log(`-- BLD Issuer Board Id: ${BLD_ISSUER_BOARD_ID}`);
+
+  return {
+    INSTALLATION_BOARD_ID,
+    INSTALLATION_NFT_BOARD_ID,
+    BLD_ISSUER_BOARD_ID,
+  };
 };
 
 const startInstance = async (
@@ -197,27 +208,29 @@ const deployContract = async (homePromise, { pathResolve }) => {
   } = home;
 
   //  await sendDeposit(wallet, faucet);
-  const { INSTALLATION_BOARD_ID, INSTALLATION_NFT_BOARD_ID } =
-    await installBundle(pathResolve, zoe, board);
-
-  await startInstance(
-    pathResolve,
-    board,
-    wallet,
-    zoe,
+  const {
     INSTALLATION_BOARD_ID,
     INSTALLATION_NFT_BOARD_ID,
-  );
+    BLD_ISSUER_BOARD_ID,
+  } = await installBundle(pathResolve, zoe, board, wallet);
+
+  // await startInstance(
+  //   pathResolve,
+  //   board,
+  //   wallet,
+  //   zoe,
+  //   INSTALLATION_BOARD_ID,
+  //   INSTALLATION_NFT_BOARD_ID,
+  // );
 
   // Save the constants somewhere where the UI and api can find it.
   const dappConstants = {
     INSTALLATION_BOARD_ID,
     INSTALLATION_NFT_BOARD_ID,
+    BLD_ISSUER_BOARD_ID,
   };
   const defaultsFolder = pathResolve(`../ui/public/conf`);
-  const defaultsFile = pathResolve(
-    `../ui/public/conf/installationConstants.js`,
-  );
+  const defaultsFile = pathResolve(`../react-ui/src/constants.js`);
   console.log('writing', defaultsFile);
   const defaultsContents = `\
 // GENERATED FROM ${pathResolve('./deploy.js')}

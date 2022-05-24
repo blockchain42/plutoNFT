@@ -113,7 +113,7 @@ test(`pluto nft mint`, async (t) => {
   t.is(currentPurseBalance.value, 1n, `Seller should get 1 bld from nft sale`);
 });
 
-test(`agatar mint`, async (t) => {
+test(`pluto mint second test`, async (t) => {
   const { admin: fakeVatAdmin, vatAdminState } = makeFakeVatAdmin();
   const { zoeService: zoe } = makeZoeKit(fakeVatAdmin);
 

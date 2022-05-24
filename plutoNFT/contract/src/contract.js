@@ -22,33 +22,6 @@ const start = (zcf) => {
 
   const zoeService = zcf.getZoeService();
 
-  const createNTF = async (data) => {
-    const brand = issuer.getBrand();
-
-    const nftAmount = AmountMath.make(brand, harden([data]));
-
-    const nftPayment = mintNft.mintPayment(nftAmount);
-
-    const proposal = harden({
-      give: { Item: nftAmount },
-      want: { Money: pricePerItem },
-    });
-    const paymentKeywordRecord = harden({ Item: nftPayment });
-
-    const creatorInvitation = await zcf.makeInvitation(
-      sellerInvitation,
-      'creatorOffer',
-    );
-
-    const seat = await E(zoeService).offer(
-      creatorInvitation,
-      proposal,
-      paymentKeywordRecord,
-    );
-
-    return seat;
-  };
-
   /** @type {OfferHandler} */
   const sellerInvitation = (sellerSeat) => {
     assertProposalShape(sellerSeat, {
@@ -75,8 +48,35 @@ const start = (zcf) => {
     return buyersInvitation;
   };
 
+  const createNFT = async (data) => {
+    const brand = zcf.getBrandForIssuer(issuer);
+
+    const nftAmount = AmountMath.make(brand, harden([data]));
+
+    const nftPayment = await E(mintNft).mintPayment(nftAmount);
+
+    const proposal = harden({
+      give: { Item: nftAmount },
+      want: { Money: pricePerItem },
+    });
+
+    const paymentKeywordRecord = harden({ Item: nftPayment });
+
+    const creatorInvitation = await zcf.makeInvitation(
+      sellerInvitation,
+      'creatorOffer',
+    );
+
+    const seat = await E(zoeService).offer(
+      creatorInvitation,
+      proposal,
+      paymentKeywordRecord,
+    );
+    return seat;
+  };
+
   const creatorFacet = Far('creatorFacet', {
-    mintNFT: (data) => createNTF(data),
+    mintNFT: (data) => createNFT(data),
   });
 
   const publicFacet = Far('publicFacet', {
