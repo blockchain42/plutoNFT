@@ -34,7 +34,7 @@ const MyWalletConnection = (props) => {
     id: '',
     collectionName: '',
     assetName: '',
-  })
+  });
 
   const setupWalletConnection = async (walletConnection) => {
     // This is one of the only methods that the wallet connection facet allows.
@@ -57,7 +57,7 @@ const MyWalletConnection = (props) => {
 
     const bldIssuer = await E(board).getValue(BLD_ISSUER_BOARD_ID);
     const bldBrand = await E(bldIssuer).getBrand();
-    const pricePerItem = AmountMath.make(bldBrand, 1n);
+    const pricePerItem = AmountMath.make(bldBrand, 1000000n);
 
     const {
       creatorFacet: sellerCreatorFacet,
@@ -157,7 +157,7 @@ const MyWalletConnection = (props) => {
   }, []);
 
   async function mintMeNft(nft) {
-    console.log('NFT to mint: ', nft)
+    console.log('NFT to mint: ', nft);
     // const nft = {
     //   uri: 'pluto.agoric.nft/2',
     // };
@@ -196,52 +196,53 @@ const MyWalletConnection = (props) => {
 
   return (
     <>
-    { !agoricInterface || !tokenPursePetname || !awesomezPursePetname 
-    ?
-      <div id="Interface-activation">
-      <div className="Loader" />
-      <p>
-        Waiting for Agoric interface to be activated (click <b>Accept</b> in
-        your Agoric wallet)...
-      </p>
-    </div>
-    :
-      <div>
-      <div id="nftform" className="nftForm">
-        <div>
-          <label htmlFor="nftId">ID</label>
-          <input 
-            type="text" 
-            name="nftId" 
-            id="nftId" 
-            onChange={(e) => setNft({...nft, id: e.target.value})}
-            value={nft.id}
-          />
+      {!agoricInterface || !tokenPursePetname || !awesomezPursePetname ? (
+        <div id="Interface-activation">
+          <div className="Loader" />
+          <p>
+            Waiting for Agoric interface to be activated (click <b>Accept</b> in
+            your Agoric wallet)...
+          </p>
         </div>
+      ) : (
         <div>
-          <label htmlFor="nftId">Collection name</label>
-          <input 
-            type="text" 
-            name="nftId" 
-            id="nftId"
-            onChange={(e) => setNft({...nft, collectionName: e.target.value})}
-            value={nft.collectionName} 
-          />
+          <div id="nftform" className="nftForm">
+            <div>
+              <label htmlFor="nftId">ID</label>
+              <input
+                type="text"
+                name="nftId"
+                id="nftId"
+                onChange={(e) => setNft({ ...nft, id: e.target.value })}
+                value={nft.id}
+              />
+            </div>
+            <div>
+              <label htmlFor="nftId">Collection name</label>
+              <input
+                type="text"
+                name="nftId"
+                id="nftId"
+                onChange={(e) =>
+                  setNft({ ...nft, collectionName: e.target.value })
+                }
+                value={nft.collectionName}
+              />
+            </div>
+            <div>
+              <label htmlFor="nftId">Asset name</label>
+              <input
+                type="text"
+                name="nftId"
+                id="nftId"
+                onChange={(e) => setNft({ ...nft, assetName: e.target.value })}
+                value={nft.assetName}
+              />
+            </div>
+          </div>
+          <button onClick={() => mintMeNft(nft)}>MINT NFT</button>
         </div>
-        <div>
-          <label htmlFor="nftId">Asset name</label>
-          <input 
-            type="text" 
-            name="nftId" 
-            id="nftId"
-            onChange={(e) => setNft({...nft, assetName: e.target.value})}
-            value={nft.assetName} 
-          />
-        </div>
-      </div>
-      <button onClick={() => mintMeNft(nft)}>MINT NFT</button>
-    </div>
-    }
+      )}
       <AgoricWalletConnection
         style={{ display: 'none' }}
         onState={onWalletState}

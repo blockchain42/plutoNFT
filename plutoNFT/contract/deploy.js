@@ -79,7 +79,7 @@ const startInstance = async (
   const bldIssuer = issuers.get('BLD');
   const bldBrand = await E(bldIssuer).getBrand();
 
-  const pricePerItem = AmountMath.make(bldBrand, 1n);
+  const pricePerItem = AmountMath.make(bldBrand, 1000000n);
 
   const { creatorFacet, instance } = await E(zoe).startInstance(
     installationNFT,
