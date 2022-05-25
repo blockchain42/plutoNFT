@@ -5,6 +5,7 @@ import { observeNotifier } from '@agoric/notifier';
 import React, { useCallback, useState } from 'react';
 import { makeReactAgoricWalletConnection } from '@agoric/wallet-connection/react';
 import { AmountMath } from '../../contract/node_modules/@agoric/ertp/src';
+import axios from 'axios';
 
 import './App.css';
 import dappConstants from './constants';
@@ -31,10 +32,14 @@ const MyWalletConnection = (props) => {
   // const [walletOffers, setWalletOffers] = useState([]);
   const [agoricInterface, setAgoricInterface] = useState({});
   const [nft, setNft] = useState({
-    id: '',
+    id: 0,
     collectionName: '',
-    assetName: '',
+    assetName: 'default',
   });
+
+  const [imgExists, setImgExists] = useState(true);
+  const [imgName, setImgName] = useState('default');
+  const [counter, setCounter] = useState(0);
 
   const setupWalletConnection = async (walletConnection) => {
     // This is one of the only methods that the wallet connection facet allows.
@@ -156,12 +161,29 @@ const MyWalletConnection = (props) => {
     }
   }, []);
 
+  async function generate(nft) {
+    setCounter(counter + 1);
+    setNft({ ...nft, assetName: 'img' + counter, id: counter });
+    setImgExists(false);
+    const result = await axios
+      .post(`http://localhost:3042/api/generate/`, { nft })
+      .then((res) => res.data)
+      .catch((err) => console.log(err));
+
+    console.log('DATA: resp', result);
+    setImgName(nft.assetName);
+    setImgExists(true);
+  }
+
   async function mintMeNft(nft) {
     console.log('NFT to mint: ', nft);
-    // const nft = {
-    //   uri: 'pluto.agoric.nft/2',
-    // };
+
+    const sellerSeat = await E(agoricInterface.creatorFacet).mintNFT(nft);
+
+    const buyersInvitation = await E(sellerSeat).getOfferResult();
+
     const offer = {
+      id: `${Date.now()}`,
       proposalTemplate: {
         want: {
           Item: {
@@ -177,21 +199,11 @@ const MyWalletConnection = (props) => {
           },
         },
       },
+      invitation: buyersInvitation,
       dappContext: true,
     };
 
-    const sellerSeat = await E(agoricInterface.creatorFacet).mintNFT(nft);
-
-    const buyersInvitation = await E(sellerSeat).getOfferResult();
-
-    const updatedOffer = {
-      id: `${Date.now()}`,
-
-      invitation: buyersInvitation,
-      ...offer,
-    };
-
-    await E(agoricInterface.walletBridge).addOffer(updatedOffer);
+    await E(agoricInterface.walletBridge).addOffer(offer);
   }
 
   return (
@@ -208,16 +220,6 @@ const MyWalletConnection = (props) => {
         <div>
           <div id="nftform" className="nftForm">
             <div>
-              <label htmlFor="nftId">ID</label>
-              <input
-                type="text"
-                name="nftId"
-                id="nftId"
-                onChange={(e) => setNft({ ...nft, id: e.target.value })}
-                value={nft.id}
-              />
-            </div>
-            <div>
               <label htmlFor="nftId">Collection name</label>
               <input
                 type="text"
@@ -230,17 +232,39 @@ const MyWalletConnection = (props) => {
               />
             </div>
             <div>
+              <label htmlFor="nftId">ID</label>
+              <label htmlFor="nftId">{nft.id}</label>
+              {/* <input
+                type="text"
+                name="nftId"
+                id="nftId"
+                onChange={(e) => setNft({ ...nft, id: e.target.value })}
+                value={nft.id}
+              /> */}
+            </div>
+            <div>
               <label htmlFor="nftId">Asset name</label>
-              <input
+              <label htmlFor="nftId">{nft.assetName}</label>
+              {/* <input
                 type="text"
                 name="nftId"
                 id="nftId"
                 onChange={(e) => setNft({ ...nft, assetName: e.target.value })}
                 value={nft.assetName}
-              />
+              /> */}
             </div>
           </div>
-          <button onClick={() => mintMeNft(nft)}>MINT NFT</button>
+          <button onClick={() => generate(nft)}>Generate</button>
+          <button onClick={() => mintMeNft(nft)}>Buy NFT</button>
+          {imgExists ? (
+            <img
+              src={process.env.PUBLIC_URL + '/assets/' + imgName + '.jpeg'}
+              width="600"
+              height="600"
+            />
+          ) : (
+            <div></div>
+          )}
         </div>
       )}
       <AgoricWalletConnection
