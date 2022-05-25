@@ -229,7 +229,7 @@ const deployContract = async (homePromise, { pathResolve }) => {
     INSTALLATION_NFT_BOARD_ID,
     BLD_ISSUER_BOARD_ID,
   };
-  const defaultsFolder = pathResolve(`../ui/public/conf`);
+  const defaultsFolder = pathResolve(`../react-ui/public/conf`);
   const defaultsFile = pathResolve(`../react-ui/src/constants.js`);
   console.log('writing', defaultsFile);
   const defaultsContents = `\

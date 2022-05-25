@@ -3,5 +3,5 @@ defaults.js
 installationConstants.js
 _agstate/yarn-links/
 .idea/
-ui/.cache/
-ui/dist/
+react-ui/.cache/
+react-ui/dist/
