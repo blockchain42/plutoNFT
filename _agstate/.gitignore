@@ -1,3 +1,5 @@
 agoric-wallet
 keys
-agoric-servers
+!agoric-servers
+agoric-servers/*
+!agoric-servers/package.json
