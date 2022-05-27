@@ -28,17 +28,15 @@ const AgoricWalletConnection = makeReactAgoricWalletConnection(React);
 const MyWalletConnection = (props) => {
   const [tokenPursePetname, setTokenPursePetname] = useState();
   const [awesomezPursePetname, setAwesomezPursePetname] = useState();
-  // const [agoricInterface, setAgoricInterface] = useState();
-  // const [walletOffers, setWalletOffers] = useState([]);
   const [agoricInterface, setAgoricInterface] = useState({});
   const [nft, setNft] = useState({
     id: 0,
     collectionName: '',
-    assetName: 'default',
+    assetName: '',
   });
 
-  const [imgExists, setImgExists] = useState(true);
-  const [imgName, setImgName] = useState('default');
+  const [imgExists, setImgExists] = useState(false);
+  const [imgName, setImgName] = useState('');
   const [counter, setCounter] = useState(0);
 
   const setupWalletConnection = async (walletConnection) => {
@@ -95,8 +93,6 @@ const MyWalletConnection = (props) => {
       INSTANCE_NFT_BOARD_ID,
     );
 
-    // setAgoricInterface({ zoe, board, walletBridge });
-
     const BLD_BRAND_BOARD_ID = await E(board).getId(bldBrand);
     const NFT_BRAND_BOARD_ID = await E(board).getId(nftBrand);
 
@@ -135,7 +131,6 @@ const MyWalletConnection = (props) => {
     observeNotifier(E(walletBridge).getOffersNotifier(), {
       updateState: (walletOffers) => {
         console.log(walletOffers);
-        // setWalletOffers(walletOffers);
       },
     });
   };
@@ -161,21 +156,24 @@ const MyWalletConnection = (props) => {
     }
   }, []);
 
-  async function generate(nft) {
+  async function generate() {
     setCounter(counter + 1);
-    setNft({ ...nft, assetName: 'img' + counter, id: counter });
+    const newNft = { assetName: 'img' + counter, id: counter };
+    setNft({ ...nft, ...newNft });
     setImgExists(false);
     const result = await axios
-      .post(`http://localhost:3042/api/generate/`, { nft })
+      .post(`http://localhost:3042/api/generate/`, {
+        nft: { ...nft, ...newNft },
+      })
       .then((res) => res.data)
       .catch((err) => console.log(err));
 
     console.log('DATA: resp', result);
-    setImgName(nft.assetName);
+    setImgName(newNft.assetName);
     setImgExists(true);
   }
 
-  async function mintMeNft(nft) {
+  async function mintMeNft() {
     console.log('NFT to mint: ', nft);
 
     const sellerSeat = await E(agoricInterface.creatorFacet).mintNFT(nft);
@@ -234,28 +232,14 @@ const MyWalletConnection = (props) => {
             <div>
               <label htmlFor="nftId">ID</label>
               <label htmlFor="nftId">{nft.id}</label>
-              {/* <input
-                type="text"
-                name="nftId"
-                id="nftId"
-                onChange={(e) => setNft({ ...nft, id: e.target.value })}
-                value={nft.id}
-              /> */}
             </div>
             <div>
               <label htmlFor="nftId">Asset name</label>
               <label htmlFor="nftId">{nft.assetName}</label>
-              {/* <input
-                type="text"
-                name="nftId"
-                id="nftId"
-                onChange={(e) => setNft({ ...nft, assetName: e.target.value })}
-                value={nft.assetName}
-              /> */}
             </div>
           </div>
-          <button onClick={() => generate(nft)}>Generate</button>
-          <button onClick={() => mintMeNft(nft)}>Buy NFT</button>
+          <button onClick={() => generate()}>Generate</button>
+          <button onClick={() => mintMeNft()}>Buy NFT</button>
           {imgExists ? (
             <img
               src={process.env.PUBLIC_URL + '/assets/' + imgName + '.jpeg'}
