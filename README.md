@@ -19,4 +19,8 @@
 
 - `cd react-ui && yarn start`
 
+### In a fourth terminal run:
+
+- `cd generator && npm i && node index.js`
+
 After the above process you should have two tabs open in your browser with the Agoric wallet and with the React application. After a minute or so you should see a popup in your wallet for approving the dapp. Then you will be able to mint a randomly generated NFT and confirm the purchase in the wallet.
